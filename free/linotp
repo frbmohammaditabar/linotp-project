@@ -1,0 +1,40 @@
+server linotp {
+listen {
+  ipaddr = *
+  port = 1812
+  type = auth
+}
+listen {
+  ipaddr = *
+  port = 1813
+  type = acct
+}
+authorize {
+    if ("%{User-Name}" =~ /^([^@]+)@.*$/) {
+        update request {
+            User-Name := "%{1}"
+        }
+    }
+    preprocess
+    if (!control:Auth-Type) {
+        update control {
+            Auth-Type := Perl
+        }
+    }
+#  update {
+#    &control:Auth-Type := Perl
+#  }
+}
+authenticate {
+    Auth-Type Perl {
+        perl   # your LinOTP module here
+    }
+
+#  Auth-Type Perl {
+#    perl
+#  }
+}
+accounting {
+  unix
+  }
+}

@@ -1,0 +1,42 @@
+use strict;
+use warnings;
+use LWP::UserAgent;
+use JSON;
+
+our (%RAD_REQUEST, %RAD_REPLY, %RAD_CHECK);
+
+sub authorize {
+    my $user = $RAD_REQUEST{'User-Name'} || '';
+    my $otp = $RAD_REQUEST{'User-Password'} || '';
+
+    # LinOTP settings
+    my $linotp_url = 'http://192.168.100.5:5000/validate/check';
+    my $realm      = 'bluteam.ir';
+    my $resconf    = 'bluteam';
+
+    # Create REST request
+    my $ua = LWP::UserAgent->new;
+    $ua->timeout(5);
+    $ua->ssl_opts(verify_hostname => 0, SSL_verify_mode => 0x00);
+
+    my $url = "$linotp_url?user=$user&pass=$otp&realm=$realm&resConf=$resconf";
+
+    my $response = $ua->get($url);
+
+    if ($response->is_success) {
+        my $result = decode_json($response->decoded_content);
+
+        if (defined($result->{'result'}) && $result->{'result'}->{'value'} eq 'true') {
+            $RAD_REPLY{'Reply-Message'} = "OTP authentication successful.";
+            return RLM_MODULE_OK;
+        } else {
+            $RAD_REPLY{'Reply-Message'} = "OTP rejected: " . ($result->{'error'}->{'message'} // 'Unknown error');
+            return RLM_MODULE_REJECT;
+        }
+    } else {
+        $RAD_REPLY{'Reply-Message'} = "Failed to contact LinOTP server.";
+        return RLM_MODULE_REJECT;
+    }
+}
+
+1;

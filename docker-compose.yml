@@ -1,0 +1,71 @@
+services:
+  linotp3:
+    # build:
+    #   context: ..
+    image: linotp3
+    container_name: linotp3
+    environment:
+      LINOTP_ADMIN_PASSWORD: "admin@123"
+      LINOTP_DATABASE_URI: "postgres://linotpuser:linotppass@linotp-db/linotp_db" #gitleaks:allow
+      LINOTP_LOG_LEVEL: "DEBUG"
+      LINOTP_SITE_ROOT_REDIRECT: "/manage/"
+      LINOTP_SESSION_COOKIE_SECURE: false
+    command: "--with-bootstrap"
+    volumes:
+      - linotp_data:/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    depends_on:
+      - linotp-db
+    ports:
+      - "4443:5000"
+
+  selfservice:
+    image: selfservice
+    restart: always
+    container_name: selfservice
+    environment:
+      - URL_PATH=/selfservice
+      - SERVER_PORT=80
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      #- ./custom-selfservice:/usr/share/nginx/html/en
+      - /root/linotp3/portal/index.html:/usr/share/nginx/html/en/index.html
+      - /root/linotp3/portal/main.a2aa74076e7d6925.js:/usr/share/nginx/html/en/main.a2aa74076e7d6925.js
+      - /root/linotp3/portal/logo.png:/usr/share/nginx/html/en/assets/logo.png
+      - /root/linotp3/portal/logo.png:/usr/share/nginx/html/en/assets/logo-dark.png
+      - /root/linotp3/portal/favicon.ico:/usr/share/nginx/html/en/assets/favicon.ico
+
+    ports:
+      - "443:80"
+
+  freeradius:
+    image: build_freeradius
+    container_name: freeradius
+    command: "freeradius -X"
+    volumes:
+      - /root/linotp3/free/users:/etc/freeradius/users
+      - /root/linotp3/free/clients.conf:/etc/freeradius/clients.conf
+      - /root/linotp3/free/rlm_perl.ini:/etc/linotp2/rlm_perl.ini
+      - /root/linotp3/free/linotp:/etc/freeradius/sites-enabled/linotp
+      - /root/linotp3/free/radius_linotp.pm:/usr/share/linotp/radius_linotp.pm
+      - /root/linotp3/free/perl:/etc/freeradius/3.0/mods-available/perl
+      - /root/linotp3/free/default:/etc/freeradius/sites-enabled/default
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    ports:
+       - "1814:1812/udp"
+       - "1815:1813/udp"  
+  linotp-db:
+    image: postgres:latest
+    environment:
+      POSTGRES_DB: "linotp_db"
+      POSTGRES_USER: "linotpuser"
+      POSTGRES_PASSWORD: "linotppass"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  linotp_data:
+  pg_data:

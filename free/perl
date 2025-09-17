@@ -1,0 +1,5 @@
+perl {
+ filename = /usr/share/linotp/radius_linotp.pm
+ func_authenticate = authenticate
+ func_authorize = authorize
+ }
